@@ -1,0 +1,21 @@
+# Étape 1 : Spécifier l'image de base. C'est l'image que MinIO fournit.
+FROM quay.io/minio/minio:latest
+
+# Étape 2 : Définir les variables d'environnement par défaut (Utilisateurs et mots de passe).
+# NOTE : Ces valeurs seront écrasées par les -e dans la commande 'docker run' ou 'docker-compose'.
+ENV MINIO_ROOT_USER="minioadmin"
+ENV MINIO_ROOT_PASSWORD="minioadmin"
+
+# Étape 3 : Exposer les ports. Ceci est une documentation de l'image.
+# MinIO par défaut utilise 9000 pour l'API et 9001 pour la Console.
+EXPOSE 9000
+EXPOSE 9001
+
+# Étape 4 : Définir le point d'entrée pour exécuter le serveur MinIO.
+# C'est la commande qui est lancée lorsque le conteneur démarre.
+# Le chemin "/data" est la zone de stockage du serveur MinIO.
+# Le "--console-address ":9001"" configure la console web.
+CMD ["server", "/data", "--console-address", ":9001"]
+
+# NOTE : Les commandes WORKDIR et USER peuvent être ajoutées pour de meilleures pratiques,
+# mais ne sont pas strictement nécessaires ici car l'image de base MinIO les gère déjà.
