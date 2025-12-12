@@ -1,10 +1,6 @@
 # Étape 1 : Spécifier l'image de base. C'est l'image que MinIO fournit.
 FROM quay.io/minio/minio:latest
 
-# Étape 2 : Définir les variables d'environnement par défaut (Utilisateurs et mots de passe).
-# NOTE : Ces valeurs seront écrasées par les -e dans la commande 'docker run' ou 'docker-compose'.
-ENV MINIO_ROOT_USER="minioadmin"
-ENV MINIO_ROOT_PASSWORD="minioadmin"
 
 # Étape 3 : Exposer les ports. Ceci est une documentation de l'image.
 # MinIO par défaut utilise 9000 pour l'API et 9001 pour la Console.
