@@ -66,7 +66,7 @@ def traiter_et_predire_vrai(chemin_audio):
     predictions = model.predict(matrice_input)[0]
     nb_sorties_modele = len(predictions)
     index_predit = np.argmax(predictions)
-    score_confiance = predictions[index_predit] * 100
+    score_confiance = predictions[index_predit] * 100  # Déjà sur une base 100
     
     # CAS 1 : C'est bien le nouveau modèle à 7 sorties qui est chargé
     if nb_sorties_modele == 7:
@@ -74,7 +74,6 @@ def traiter_et_predire_vrai(chemin_audio):
         
     # CAS 2 : Sécurité si l'ancien modèle à 26/15 sorties est encore en mémoire cache
     else:
-        # On récupère le nom de l'instrument d'origine pour éviter le crash de l'index out of range
         nom_instrument_brut = CLASSES_BRUTES_26[index_predit] if index_predit < len(CLASSES_BRUTES_26) else "autre"
         
         # Mapping logique à la volée vers les 7 familles
@@ -144,20 +143,35 @@ def predict():
     try:
         famille_detectee, confiance = traiter_et_predire_vrai(chemin_temporaire)
         statut = "Succès"
+        
+        # --- SÉCURISATION ET GESTION DES 25% D'ERREURS ---
+        SEUIL_CONFIANCE_KPI = 70.0  # Seuil fixé à 70%
+        
+        if confiance < SEUIL_CONFIANCE_KPI:
+            statut_routage = "Alerte : Niveau de confiance insuffisant (< 70%)"
+            action_industrialisation = "Routage suspendu - Envoi immédiat au bac de révision manuelle (Secrétariat)"
+        else:
+            statut_routage = "Validé"
+            action_industrialisation = f"Routage automatique vers le répertoire industriel : {famille_detectee}"
+            
     except Exception as e:
         famille_detectee = "Erreur de classification"
         confiance = 0.0
         statut = f"Erreur technique : {str(e)}"
+        statut_routage = "Échec technique"
+        action_industrialisation = "Aucune action - Fichier corrompu ou illisible"
+        
     finally:
         if os.path.exists(chemin_temporaire):
             os.remove(chemin_temporaire)
-    
+            
     return jsonify({
         'statut': statut,
         'fichier_analyse': fichier.filename,
         'famille_instrument_identifiee': famille_detectee,
         'score_de_confiance_global': f"{confiance:.2f}%",
-        'action_industrialisation': f"Routage automatique vers le répertoire industriel : {famille_detectee}"
+        'statut_routage_metier': statut_routage,
+        'action_industrialisation': action_industrialisation
     })
 
 if __name__ == '__main__':
