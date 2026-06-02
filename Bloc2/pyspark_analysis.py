@@ -1,13 +1,14 @@
+"""
+Module d'analyse Big Data distribuée via PySpark.
+
+Ce script se connecte à un cluster Spark autonome (Standalone Docker), aspire les données de la couche Gold de PostgreSQL via une passerelle JDBC, et exécute un plan d'agrégation statistique lours entièrement parallélisé sur les noeuds du cluster (Workers).
+"""
+
 import os
 import time
-# from dotenv import load_dotenv
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
-# 1. Chargement du fichier .env situé à la racine 
-# load_dotenv(dotenv_path=".env") 
-
-# 2. Récupération des variables d'environnement de PostgreSQL
 db_name = os.getenv('POSTGRES_DB')
 db_user = os.getenv('POSTGRES_USER')
 db_pass = os.getenv('POSTGRES_PASSWORD')
@@ -18,8 +19,7 @@ if not db_name or not db_user or not db_pass:
 
 print("Configuration de l'environnement chargée avec succès.")
 
-# 3. Initialisation de la session Spark connectée au Master Docker
-# On demande à Spark de charger automatiquement le connecteur JDBC Postgres
+
 print("Connexion au cluster Spark (Docker) en cours...")
 spark = SparkSession.builder \
     .appName("AudioProject_BigData_Analysis") \
@@ -27,9 +27,7 @@ spark = SparkSession.builder \
     .config("spark.jars.packages", "org.postgresql:postgresql:42.7.3") \
     .getOrCreate()
 
-# 4. Configuration de la connexion JDBC vers PostgreSQL Gold
-# Attention : sous Windows, pour que le script Python (local) parle à Postgres (Docker),
-# on utilise 'localhost:5432'.
+
 jdbc_url = f"jdbc:postgresql://pfr-postgres:5432/{db_name}"
 connection_properties = {
     "user": db_user,
@@ -37,8 +35,7 @@ connection_properties = {
     "driver": "org.postgresql.Driver"
 }
 
-# 5. Lecture parallélisée de la table Gold via une sous-requête (pour avoir les vrais noms d'instruments)
-# Cela nous évite de récupérer un simple 'instrument_id' numérique
+
 query_table = """
 (SELECT t.filename, t.duration_seconds, t.size_bytes, t.source_dataset, i.label_name as instrument 
  FROM audio_tracks t 
@@ -58,11 +55,11 @@ except Exception as e:
     spark.stop()
     exit(1)
 
-# 6. Traitement statistique Big Data (Critère C2.3)
+
 print("Lancement de l'analyse statistique distribuée sur le cluster...")
 start_time = time.time()
 
-# Agrégation multivariée
+
 statistiques_multivariees = spark_df.groupBy("instrument", "source_dataset") \
     .agg(
         F.count("filename").alias("total_pistes"),
@@ -73,12 +70,12 @@ statistiques_multivariees = spark_df.groupBy("instrument", "source_dataset") \
     ) \
     .orderBy("instrument")
 
-# Déclenchement physique du calcul (Action Spark)
+
 statistiques_multivariees.show(40, truncate=False)
 
 execution_time = time.time() - start_time
 print(f"Temps de calcul parallélisé avec Spark : {execution_time:.4f} secondes")
 
-# Fermeture propre de la session
+
 spark.stop()
 print("Session Spark clôturée.")

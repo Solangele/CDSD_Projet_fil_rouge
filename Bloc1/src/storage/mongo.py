@@ -1,3 +1,10 @@
+"""
+Module de structuration et d'enrichissement (Pipeline Bronze vers Silver).
+
+Ce script récupère les objets bruts stockés dans le stockage objet MinIO (couche Bronze), applique des règles de nettoyage (filtrage des formats, exclusion des fichiers systèmes), extrait intelligemment les labels d'instruments, calcule la durée audio réelle, et sauvegarde ces documents nettoyés et uniformisés dans MongoDB (couche Silver).
+"""
+
+
 import os
 import io
 import boto3
@@ -7,7 +14,7 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path="../../.env") 
 
-# 1. Connexion aux services
+
 s3 = boto3.client('s3',
     endpoint_url='http://localhost:9000',
     aws_access_key_id=os.getenv('MINIO_ACCESS_KEY'),
@@ -33,8 +40,22 @@ IRMAS_INSTRUMENTS = {
     "tru": "trumpet", "vln": "violin", "voi": "voice"
 }
 
-# Ajout de bucket_name dans les paramètres de la fonction
+
 def extract_instrument_label(bucket_name, file_key, source_name):
+    """
+    Extrait et normalise le label de l'instrument d'un fichier brut (Bronze).
+    
+    Cette étape participe à la mise en conformité de la donnée pour la couche Silver en appliquant 3 stratégies successives pour le dataset IRMAS (dossier parent, nom du fichier, ou lecture du fichier texte d'accompagnement).
+
+    Arguments:
+        bucket_name (str): Nom du bucket MinIO.
+        file_key (str): Chemin/Clé unique du fichier sur le stockage.
+        source_name (str): Origine du dataset ("philharmonia_scrap" ou "irmas_dataset").
+
+    Retourne:
+        str: Le nom complet de l'instrument normalisé, ou "unknown".
+    """
+
     file_key_lower = file_key.lower()
     
     if source_name == "philharmonia_scrap":
@@ -43,36 +64,28 @@ def extract_instrument_label(bucket_name, file_key, source_name):
     elif source_name == "irmas_dataset":
         irmas_codes = list(IRMAS_INSTRUMENTS.keys())
         
-        # Stratégie A : Dossier training (ex: training/sax/file.wav)
         parts = file_key_lower.split('/')
         if len(parts) > 1 and parts[1] in irmas_codes:
             return IRMAS_INSTRUMENTS[parts[1]] 
             
-        # Stratégie B : Présence directe dans le nom (ex: part1/[sax]1234.wav)
         for code in irmas_codes:
             if f"[{code}]" in file_key_lower or f"_{code}_" in file_key_lower:
                 return IRMAS_INSTRUMENTS[code] 
                 
-        # Stratégie C (La nouvelle !) : Lecture du fichier .txt associé pour le Testing
-        # On remplace l'extension actuelle (.wav, .WAV) par .txt
+
         base_path, _ = os.path.splitext(file_key)
         txt_key = base_path + ".txt"
         
         try:
-            # On va chercher le fichier texte portant le même nom sur MinIO
             txt_obj = s3.get_object(Bucket=bucket_name, Key=txt_key)
-            # On lit le texte, décode le binaire et nettoie les sauts de ligne
             txt_content = txt_obj['Body'].read().decode('utf-8').strip().lower()
-            
-            # Le fichier texte d'IRMAS contient souvent les codes séparés par des espaces ou tabulations
-            # On découpe le contenu mot par mot pour trouver le premier code d'instrument valide
+
             for word in txt_content.split():
                 clean_word = word.strip()
                 if clean_word in irmas_codes:
                     return IRMAS_INSTRUMENTS[clean_word]
                     
         except Exception:
-            # Si le fichier .txt est introuvable ou illisible, on ne bloque pas le script
             return "unknown"
                 
     return "unknown"
@@ -81,15 +94,24 @@ def extract_instrument_label(bucket_name, file_key, source_name):
 
 
 def get_minio_audio_duration(bucket_name, file_key):
-    """Télécharge l'en-tête du fichier depuis MinIO pour calculer sa durée en secondes"""
+    """
+    Télécharge l'objet binaire depuis MinIO pour calculer sa durée réelle en secondes.
+
+    Cette fonction charge le contenu binaire en mémoire via un flux io.BytesIO, puis utilise soundfile pour diviser le nombre de frames par la fréquence d'échantillonnage.
+
+    Arguments :
+        bucket_name (str) : Le nom du bucket MinIO
+        file_key (str) : La clé unique (chemin) du fichier audio. 
+
+    Retourne :
+        float : La durée du fichier en secondes, ou None en cas d'erreur de lecture. 
+    """
     try:
-        # On récupère l'objet binaire depuis MinIO
         response = s3.get_object(Bucket=bucket_name, Key=file_key)
         audio_data = response['Body'].read()
         
-        # On le passe en mémoire à soundfile pour lire la durée
         with sf.SoundFile(io.BytesIO(audio_data)) as f:
-            return len(f) / f.samplerate  # nb frames / fréquence = durée en secondes
+            return len(f) / f.samplerate
     except Exception as e:
         print(f"Impossible de lire la durée de {file_key}: {e}")
         return None
@@ -98,9 +120,23 @@ def get_minio_audio_duration(bucket_name, file_key):
 
 
 def index_minio_to_mongodb(bucket_name, source_name):
+    """
+    Parcourt un bucket MinIO, extrait les métadonnées de chaque fichier audio et les pousse dans MongoDb.
+
+    La fonction utiliser un paginateur S3 pour traiter les buckets contenant un grand nombre de fichiers. Chaque document inséré contient le nom, le chemin d'accès complet, la taille, la date de modification, le label extrait et la durée audio calculée. 
+    La clé d'unicité dans MongoDB est le champ 'minio_path' (Upsert).
+
+    Arguments :
+        bucket_name (str) : Le nom du bucket cible à scanner.
+        source_name (str) : Identifiant de la source (ex: "philarmonia_scrap").
+    
+    Retourne : 
+        None
+    """
+
     print(f"Indexation du bucket '{bucket_name}' (Source: {source_name})...")
     
-    # On récupère la liste des objets dans le bucket
+
     paginator = s3.get_paginator('list_objects_v2')
     count = 0
 
@@ -109,17 +145,13 @@ def index_minio_to_mongodb(bucket_name, source_name):
             for obj in page['Contents']:
                 file_key = obj['Key']
                 
-                # On ne traite que les fichiers audio
+
                 if file_key.lower().endswith(('.wav', '.mp3')):
-                    # SÉCURITÉ : On entoure le traitement par un try/except
                     try:
-                        # 1. Extraction intelligente du label selon le dataset
                         label = extract_instrument_label(bucket_name, file_key, source_name)
 
-                        # 2. Calcul de la durée en ligne depuis MinIO
                         duration = get_minio_audio_duration(bucket_name, file_key)
 
-                        # 3. Création du document JSON enrichi
                         metadata = {
                             "filename": os.path.basename(file_key),
                             "minio_path": f"{bucket_name}/{file_key}",
@@ -130,7 +162,6 @@ def index_minio_to_mongodb(bucket_name, source_name):
                             "last_modified": obj['LastModified']
                         }
 
-                        # Insertion ou mise à jour dans MongoDB
                         collection.update_one(
                             {"minio_path": metadata["minio_path"]}, 
                             {"$set": metadata}, 
@@ -142,7 +173,6 @@ def index_minio_to_mongodb(bucket_name, source_name):
                             print(f"  {count} fichiers indexés...")
                             
                     except Exception as file_error:
-                        # Si un fichier pose un problème critique, on l'affiche et on passe au suivant !
                         print(f"Fichier ignoré suite à une erreur sur {file_key}: {file_error}")
                         continue
     

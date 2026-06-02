@@ -1,23 +1,40 @@
+"""
+API Web de déploiement et routage acoustique (Bloc 5)
+
+Ce module Flask encapsule le modèle de Deep Learning (CNN) entrapiné au Bloc 4.
+Il fournit une interface web et un endpoint REST permettant de charger un fichier audio brut, de le transformer en Mel-Spectrogramme à la volée, et de router le signal vers l'une des 7 familles d'instruments cibles avec une gestion de seuil de confiance (KPI).
+
+Prérequis :
+    - Le fichier 'model_cnn_optimal.keras' doit être présent dans le même dossier
+    - Librairies : Flask, librosa, numpy, tensorflow, werkzeug
+
+Endpoints :
+    - GET / : interface web utilisateur (IHM)
+    - POST /predict : Endpoint de prédiction (reçoit le fichier audio et renvoie un JSON).
+"""
+
+
 import os
 import numpy as np
 import librosa
 import tensorflow as tf
+from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, render_template_string
 
 app = Flask(__name__)
 
-# 1. CHEMIN DE PRODUCTION DU MODÈLE
-DOSSIER_DU_SCRIPT = os.path.dirname(os.path.abspath(__file__))
-CHEMIN_MODELE = os.path.join(DOSSIER_DU_SCRIPT, "model_cnn_optimal.h5")
 
-# 2. CHARGEMENT DU MODÈLE
+DOSSIER_DU_SCRIPT = os.path.dirname(os.path.abspath(__file__))
+CHEMIN_MODELE = os.path.join(DOSSIER_DU_SCRIPT, "model_cnn_optimal.keras")
+
+
 if os.path.exists(CHEMIN_MODELE):
     print(f"Récupération du modèle optimal : {CHEMIN_MODELE}")
     model = tf.keras.models.load_model(CHEMIN_MODELE)
 else:
     raise FileNotFoundError(f"Le modèle '{CHEMIN_MODELE}' est introuvable dans le dossier Bloc5.")
 
-# Dictionnaire de secours universel pour mapper les indices de sortie
+
 CLASSES_BRUTES_26 = [
     "acoustic_guitar", "banjo", "bass clarinet", "bassoon", 
     "celesta", "cello", "clarinet", "contrabassoon", 
@@ -28,22 +45,22 @@ CLASSES_BRUTES_26 = [
     "violin", "voice"
 ]
 
-# Les 7 familles cibles
+
 FAMILLES_7 = [
-    "Famille des Cordes Frottées",     # index 0
-    "Famille des Cordes Pincées",     # index 1
-    "Orgues & Claviers Anciens",        # index 2
-    "Percussions",                      # index 3
-    "Pianos & Claviers Frappés",       # index 4
-    "Instruments à Vent & Cuivres",    # index 5
-    "Chant & Voix Humaines"             # index 6
+    "Famille des Cordes Frottées",  
+    "Famille des Cordes Pincées",     
+    "Orgues & Claviers Anciens",
+    "Percussions",
+    "Pianos & Claviers Frappés",
+    "Instruments à Vent & Cuivres",
+    "Chant & Voix Humaines" 
 ]
 
 def traiter_et_predire_vrai(chemin_audio):
     """
-    Pipeline de production adaptatif et sécurisé contre les crashs d'index
+    Pipeline d'inférence : transforme l'audio en Mel-Spectrogramme (128 x 128 x 1) et applique une logique de routage robuste selon l'architecture du modèle chargé.
     """
-    # Étape C4.1 : Prétraitement du signal audio
+
     y, sr = librosa.load(chemin_audio, sr=22050, duration=3.0)
     mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128, fmax=8000)
     mel_spec_db = librosa.power_to_db(mel_spec, ref=np.max)
@@ -62,21 +79,21 @@ def traiter_et_predire_vrai(chemin_audio):
 
     matrice_input = np.expand_dims(mel_spec_db, axis=(0, -1))
     
-    # Étape C4.2 : Prédiction brute
+
     predictions = model.predict(matrice_input)[0]
     nb_sorties_modele = len(predictions)
     index_predit = np.argmax(predictions)
-    score_confiance = predictions[index_predit] * 100  # Déjà sur une base 100
+    score_confiance = float(predictions[index_predit]) * 100 
     
-    # CAS 1 : C'est bien le nouveau modèle à 7 sorties qui est chargé
+
     if nb_sorties_modele == 7:
         return FAMILLES_7[index_predit], score_confiance
         
-    # CAS 2 : Sécurité si l'ancien modèle à 26/15 sorties est encore en mémoire cache
+
     else:
         nom_instrument_brut = CLASSES_BRUTES_26[index_predit] if index_predit < len(CLASSES_BRUTES_26) else "autre"
         
-        # Mapping logique à la volée vers les 7 familles
+
         if nom_instrument_brut in ["organ"]:
             return FAMILLES_7[2], score_confiance
         elif nom_instrument_brut in ["banjo", "guitar", "mandolin", "electric_guitar", "acoustic_guitar"]:
@@ -92,7 +109,7 @@ def traiter_et_predire_vrai(chemin_audio):
         else:
             return FAMILLES_7[5], score_confiance
 
-# --- INTERFACE WEB MÉTIER (C5.3) ---
+
 HTML_INTERFACE = """
 <!DOCTYPE html>
 <html>
@@ -136,16 +153,18 @@ def predict():
     fichier = request.files['file']
     if fichier.filename == '':
         return jsonify({'erreur': 'Aucun fichier sélectionné'}), 400
-        
-    chemin_temporaire = os.path.join(".", fichier.filename)
+    
+
+    nom_securise = secure_filename(fichier.filename)
+    chemin_temporaire = os.path.join(DOSSIER_DU_SCRIPT, nom_securise)
     fichier.save(chemin_temporaire)
     
     try:
         famille_detectee, confiance = traiter_et_predire_vrai(chemin_temporaire)
         statut = "Succès"
         
-        # --- SÉCURISATION ET GESTION DES 25% D'ERREURS ---
-        SEUIL_CONFIANCE_KPI = 70.0  # Seuil fixé à 70%
+
+        SEUIL_CONFIANCE_KPI = 70.0 
         
         if confiance < SEUIL_CONFIANCE_KPI:
             statut_routage = "Alerte : Niveau de confiance insuffisant (< 70%)"
@@ -167,7 +186,7 @@ def predict():
             
     return jsonify({
         'statut': statut,
-        'fichier_analyse': fichier.filename,
+        'fichier_analyse': nom_securise,
         'famille_instrument_identifiee': famille_detectee,
         'score_de_confiance_global': f"{confiance:.2f}%",
         'statut_routage_metier': statut_routage,

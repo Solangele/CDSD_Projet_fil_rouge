@@ -1,3 +1,13 @@
+"""
+Pipeline principal d'orchestration de données (Orchestrateur End-to-End)
+
+Ce script centralise et exécute séquentiellement toutes les étapes du projet :
+1. Extraction (Scraping) : Récupération des données source.
+2. Ingestion (Landing/Bronze) : Téléversement du vrac local vers le Data Lake Minio.
+3. Enrichissement (Silver) : Indexation, nettoyage et calculs de métadonnées dans MongoDB.
+4. Structuration (Gold) : Migration relationnelle et mise en conformité analytique dans PostgreSQL.
+"""
+
 import os
 from dotenv import load_dotenv
 from src.ingestion.scrap import etl_philharmonia_to_disk
@@ -11,6 +21,16 @@ project_root = os.path.dirname(current_dir)
 load_dotenv(dotenv_path=os.path.join(project_root, '.env'))
 
 def main():
+    """
+    Pilote l'exécution séquentielle du pipeline de données. 
+
+    Vérifie l'état de données locales avant de lancer le scraping, puis coordonne les transferts entre les différentes bases de stockage. 
+    Chaque sous-fonction appelée encapsule sa propre gestion des erreurs. 
+
+    Retourne :
+        None
+    """
+
     print("--- DÉMARRAGE DU PIPELINE GLOBAL ---")
 
     # ÉTAPE 1 : SCRAPING (Local)

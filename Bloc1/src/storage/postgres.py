@@ -1,3 +1,9 @@
+"""
+Module de migration et de structuration des données (Pipeline Silver vers Gold).
+
+Ce script se charge de récupérer les documents de métadonnées brut depuis MongoDB (couche Silver), de normaliser et valider les relations (tables de faits et de dimensions), puis de charger ces informations de façon structurée dans PostgreSQL (couche Gold).
+"""
+
 import os
 import psycopg2
 from pymongo import MongoClient
@@ -9,6 +15,15 @@ load_dotenv(dotenv_path=os.path.join(project_root, '.env'))
 
 
 def get_postgres_connection():
+    """
+    Initialise et retourne une connexion active vers la base de données PostgreSQL.
+
+    Les identifiants sensibles sont récupérés depuis les variables d'environnement. 
+
+    Retourne :
+        psycopg2.extensions.connection : Objet de connexion à la base de données. 
+    """
+
     return psycopg2.connect(
         host= "localhost",
         port= "5432",
@@ -19,7 +34,16 @@ def get_postgres_connection():
 
 
 def init_postgres_schema():
-    """ Création de la structure des tables SQL (couche Gold)"""
+    """ 
+    Initialise le schéma relationnel de la couche Gold dans PostgreSQL.
+
+    Créé les deux tables principelles si elles n'existent pas encore : 
+    1. 'instruments' (Table de dimension) : Stocke de manière unique les noms d'instruments.
+    2. 'audio_tracks' (Table de faits) : Contient les métadonnées techniques de chaque piste et est liée à la table instruments via une clé étrangère (Foreign Key).
+
+    Retourne :
+        None
+    """
     commands = (
         """
         CREATE TABLE IF NOT EXISTS instruments (
@@ -59,7 +83,18 @@ def init_postgres_schema():
 
 
 def load_silver_to_gold():
-    """Aspire MongoDB (Silver) et insère de manière structurée dans PostgreSQL (Gold)"""
+    """
+    Aspire les données de MongoDB (Silver) et les injecte de façon relationnelle dans PostgreSQL (Gold).
+
+    Le processus suit la logique suivante pour chaque document MongoDB :
+    1. Nettoyage du label d'instrument.
+    2. Insertion de l'instrument dans la table de dimension. Si l'instrument existe déjà, la contrainte UNIQUE  intercepte le doublon (ON CONFLICT) et on récupère l'identifiant existant.
+    3. Insertion des métadonnées de la piste audio dans la table de faits, liée à l'instrument_id.
+    4. En cas d'erreur sur une piste, un mécanisme de 'rollback sécurise la transaction courante pour passer proprement au document suivant. 
+
+    Retourne :
+        None
+    """
     print("Début de la transition Silver -> Gold")
 
     mongo_client = MongoClient(

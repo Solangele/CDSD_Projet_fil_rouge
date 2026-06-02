@@ -1,3 +1,10 @@
+"""
+Module de scraping et d'ETL pour le site Philarmonia.
+
+Ce script permet d'automatiser la récupération de banque de sons (samples), de les extraire à la volée en mémoire, et de les organiser localement par type d'instrument de musique. 
+"""
+
+
 import requests
 from bs4 import BeautifulSoup
 import zipfile
@@ -8,6 +15,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def etl_philharmonia_to_disk():
+    """
+    Exécute le pipeline ETL pour télécharger et organiser les samples de la Philarmonia. 
+
+    Le processus se déroule en 3 étapes : 
+    1. Extraction : Scrape la page web pour identifier le lien du fichier ZIP principal. 
+    2. Téléchargement : Récupère le ZIP principal directement en mémoire (flux binaire).
+    3. Transformation/Chargement : Parcourt le ZIP, extrait les sous-archives ZIP de chaque instrument, puis extrait et trie les fichiers audio (.mp3, .wav) dans des dossiers. 
+
+    Destination des données : 'data/scrap/philarmonia/{nom_instrument}'
+    """
+
     url = "https://philharmonia.co.uk/resources/sound-samples/"
     headers = {'User-Agent': 'Mozilla/5.0'}
     
@@ -16,13 +34,13 @@ def etl_philharmonia_to_disk():
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     links = soup.find_all('a', class_='c-btn')
-    print(f"Nombre de boutons trouvés : {len(links)}") # Vérification
+    print(f"Nombre de boutons trouvés : {len(links)}") 
     
     zip_url = None
     for link in links:
         href = link.get('href')
-        print(f"Lien analysé : {href}") # Pour voir TOUS les liens
-        if href and "zip" in href.lower(): # On ratisse plus large
+        print(f"Lien analysé : {href}") 
+        if href and "zip" in href.lower(): 
             zip_url = href
             break
 
@@ -32,9 +50,8 @@ def etl_philharmonia_to_disk():
 
 # --- PHASE 2 : TÉLÉCHARGEMENT ---
     print(f"Téléchargement en cours...")
-    r = requests.get(zip_url, stream=True) # stream=True est plus sûr pour les gros fichiers
+    r = requests.get(zip_url, stream=True) 
     
-    # On vérifie la taille du fichier reçu
     taille_mo = len(r.content) / (1024 * 1024)
     print(f"Taille du fichier téléchargé : {taille_mo:.2f} Mo")
 
@@ -55,8 +72,7 @@ def etl_philharmonia_to_disk():
 
     for filename in noms_fichiers:
         if filename.endswith('.zip') and "__MACOSX" not in filename:
-            # On définit le nom de l'instrument à partir du nom du ZIP
-            # "all-samples/banjo.zip" -> "banjo"
+
             instrument_name = os.path.basename(filename).replace('.zip', '')
             instrument_path = os.path.join(target_folder, instrument_name)
             os.makedirs(instrument_path, exist_ok=True)
@@ -70,14 +86,11 @@ def etl_philharmonia_to_disk():
                         
                         for sub_filename in sub_z.namelist():
                             if sub_filename.lower().endswith(('.mp3', '.wav')) and "__MACOSX" not in sub_filename:
-                                # On récupère juste le nom du fichier audio
                                 audio_basename = os.path.basename(sub_filename)
-                                if not audio_basename: continue # Skip les dossiers vides
+                                if not audio_basename: continue 
                                 
-                                # On définit le chemin final : data/scrap/philharmonia/banjo/note.mp3
                                 final_path = os.path.join(instrument_path, audio_basename)
                                 
-                                # On écrit le fichier à cet endroit précis
                                 with sub_z.open(sub_filename) as source, open(final_path, "wb") as target:
                                     target.write(source.read())
                                 

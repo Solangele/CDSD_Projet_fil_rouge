@@ -1,5 +1,4 @@
 services:
-  # Stockage objet S3-compatible
   minio:
     image: minio/minio:latest
     container_name: pfr-minio
@@ -20,7 +19,7 @@ services:
     networks:
       - tp-network
 
-  # Base de données documentaire
+
   mongodb:
     image: mongo:7.0
     container_name: pfr-mongodb
@@ -40,7 +39,7 @@ services:
     networks:
       - tp-network
 
-# Interface web pour MongoDB
+
   mongo-express:
     image: mongo-express:latest
     container_name: pfr-mongo-express
@@ -58,7 +57,7 @@ services:
     networks:
       - tp-network
 
-  # Base de données relationnelle SQL
+
   postgres:
     image: postgres:16
     container_name: pfr-postgres
@@ -73,7 +72,7 @@ services:
     networks:
       - tp-network
 
-# Interface web pour PostgreSQL
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: pfr-pgadmin
@@ -90,12 +89,12 @@ services:
       - tp-network
   
 
-# Spark Master unifié
+
   spark-master:
       image: apache/spark:3.5.0
       container_name: spark-master
       env_file:
-        - .env # Transmet automatiquement TOUTES les variables du .env à l'intérieur du conteneur
+        - .env 
       environment:
         - SPARK_MODE=master
         - SPARK_RPC_AUTHENTICATION_ENABLED=no
@@ -105,13 +104,13 @@ services:
       ports:
         - "8080:8080"
         - "7077:7077"
-      command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master # Force le Master à rester actif
+      command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
       volumes:
-        - .:/opt/spark/work #Partage le projet Windows avec le conteneur
+        - .:/opt/spark/work
       networks:
         - tp-network
 
-    # Spark Worker unifié 
+
   spark-worker:
     image: apache/spark:3.5.0
     container_name: spark-worker-1
@@ -126,9 +125,9 @@ services:
       - SPARK_SSL_ENABLED=no
     depends_on:
       - spark-master
-    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 # Force le Worker à rester actif
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     volumes:
-      - .:/opt/spark/work # Partage le projet Windows avec le conteneur
+      - .:/opt/spark/work 
     networks:
       - tp-network
 

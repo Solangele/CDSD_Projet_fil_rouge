@@ -1,3 +1,10 @@
+"""
+Module de synchronisation de stockage local vers MinIO (Compatible S3).
+
+Ce script permet de connecter un client S3 local (MinIO) en utilisant des variables d'environnement, de vérifier ou créer un compartiment (bucket), puis d'y téléverser une arborescence complète de fichiers locaux. 
+"""
+
+
 import os
 import boto3
 from botocore.client import Config
@@ -5,7 +12,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Connexion avec les variables du .env
 s3 = boto3.client('s3',
     endpoint_url='http://localhost:9000',
     aws_access_key_id=os.getenv('MINIO_ACCESS_KEY'),
@@ -14,24 +20,31 @@ s3 = boto3.client('s3',
 )
 
 def upload_folder_to_minio(local_dir, bucket_name):
-    """Vérifie le bucket, le crée si besoin, et envoie le dossier local."""
+    """
+    Vérifie l'existence d'un bucket MinIO et y téleverse récursivement un dossier local. 
     
-    # 1. Vérification/Création du Bucket
+    La fonction conserve la structure des sous-dossiers locaux en calculant leurs chemins relatifs, et convertit les antislashs Windows et slashs pour assurer la compatibilité avec l'arborescence S3.
+
+    Arguments :
+        local_dir (str) : Le chemin du dossier local à téléverser (ex: "data/scrap).
+        bucket_name (str) : Le nom du bucket directement sur le serveur MinIO.
+
+    Retourne :
+        None : Les fichiers sont envoyés directement sur le serveur MinIO.
+    """
+    
     try:
-        # On essaie de voir si le bucket existe
         s3.head_bucket(Bucket=bucket_name)
         print(f"Le bucket '{bucket_name}' existe déjà.")
     except:
-        # Si head_bucket échoue, c'est que le bucket n'existe pas
         print(f"Création du bucket manquant : '{bucket_name}'...")
         try:
             s3.create_bucket(Bucket=bucket_name)
             print(f"Bucket '{bucket_name}' créé avec succès.")
         except Exception as e:
-            print(f"❌ Impossible de créer le bucket : {e}")
-            return # On s'arrête si on ne peut pas créer le bucket
+            print(f"Impossible de créer le bucket : {e}")
+            return
 
-    # 2. Parcours et envoi des fichiers
     print(f"Début de l'envoi de {local_dir}...")
     
     count = 0
