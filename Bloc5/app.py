@@ -24,18 +24,18 @@ from flask import Flask, request, jsonify, render_template_string
 app = Flask(__name__)
 
 
-DOSSIER_DU_SCRIPT = os.path.dirname(os.path.abspath(__file__))
-CHEMIN_MODELE = os.path.join(DOSSIER_DU_SCRIPT, "model_cnn_optimal.keras")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(SCRIPT_DIR, "model_cnn_optimal.keras")
 
 
-if os.path.exists(CHEMIN_MODELE):
-    print(f"Récupération du modèle optimal : {CHEMIN_MODELE}")
-    model = tf.keras.models.load_model(CHEMIN_MODELE)
+if os.path.exists(MODEL_PATH):
+    print(f"Récupération du modèle optimal : {MODEL_PATH}")
+    model = tf.keras.models.load_model(MODEL_PATH)
 else:
-    raise FileNotFoundError(f"Le modèle '{CHEMIN_MODELE}' est introuvable dans le dossier Bloc5.")
+    raise FileNotFoundError(f"Le modèle '{MODEL_PATH}' est introuvable dans le dossier Bloc5.")
 
 
-CLASSES_BRUTES_26 = [
+RAW_CLASSES_26 = [
     "acoustic_guitar", "banjo", "bass clarinet", "bassoon", 
     "celesta", "cello", "clarinet", "contrabassoon", 
     "cor anglais", "double bass", "electric_guitar", "flute", 
@@ -46,7 +46,7 @@ CLASSES_BRUTES_26 = [
 ]
 
 
-FAMILLES_7 = [
+FAMILY_7 = [
     "Famille des Cordes Frottées",  
     "Famille des Cordes Pincées",     
     "Orgues & Claviers Anciens",
@@ -56,12 +56,12 @@ FAMILLES_7 = [
     "Chant & Voix Humaines" 
 ]
 
-def traiter_et_predire_vrai(chemin_audio):
+def process_and_predict(audio_path):
     """
     Pipeline d'inférence : transforme l'audio en Mel-Spectrogramme (128 x 128 x 1) et applique une logique de routage robuste selon l'architecture du modèle chargé.
     """
 
-    y, sr = librosa.load(chemin_audio, sr=22050, duration=3.0)
+    y, sr = librosa.load(audio_path, sr=22050, duration=3.0)
     mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128, fmax=8000)
     mel_spec_db = librosa.power_to_db(mel_spec, ref=np.max)
     
@@ -77,37 +77,37 @@ def traiter_et_predire_vrai(chemin_audio):
     else:
         mel_spec_db = np.zeros_like(mel_spec_db)
 
-    matrice_input = np.expand_dims(mel_spec_db, axis=(0, -1))
+    input_tensor = np.expand_dims(mel_spec_db, axis=(0, -1))
     
 
-    predictions = model.predict(matrice_input)[0]
-    nb_sorties_modele = len(predictions)
-    index_predit = np.argmax(predictions)
-    score_confiance = float(predictions[index_predit]) * 100 
+    predictions = model.predict(input_tensor)[0]
+    model_output_nodes = len(predictions)
+    predicted_index = np.argmax(predictions)
+    confidence_score = float(predictions[predicted_index]) * 100 
     
 
-    if nb_sorties_modele == 7:
-        return FAMILLES_7[index_predit], score_confiance
+    if model_output_nodes == 7:
+        return FAMILY_7[predicted_index], confidence_score
         
 
     else:
-        nom_instrument_brut = CLASSES_BRUTES_26[index_predit] if index_predit < len(CLASSES_BRUTES_26) else "autre"
+        raw_instrument_name = RAW_CLASSES_26[predicted_index] if predicted_index < len(RAW_CLASSES_26) else "autre"
         
 
-        if nom_instrument_brut in ["organ"]:
-            return FAMILLES_7[2], score_confiance
-        elif nom_instrument_brut in ["banjo", "guitar", "mandolin", "electric_guitar", "acoustic_guitar"]:
-            return FAMILLES_7[1], score_confiance
-        elif nom_instrument_brut in ["voice"]:
-            return FAMILLES_7[6], score_confiance
-        elif nom_instrument_brut in ["bassoon", "cello", "contrabassoon", "double bass", "viola", "violin"]:
-            return FAMILLES_7[0], score_confiance
-        elif nom_instrument_brut in ["piano", "celesta"]:
-            return FAMILLES_7[4], score_confiance
-        elif nom_instrument_brut in ["percussion"]:
-            return FAMILLES_7[3], score_confiance
+        if raw_instrument_name in ["organ"]:
+            return FAMILY_7[2], confidence_score
+        elif raw_instrument_name in ["banjo", "guitar", "mandolin", "electric_guitar", "acoustic_guitar"]:
+            return FAMILY_7[1], confidence_score
+        elif raw_instrument_name in ["voice"]:
+            return FAMILY_7[6], confidence_score
+        elif raw_instrument_name in ["bassoon", "cello", "contrabassoon", "double bass", "viola", "violin"]:
+            return FAMILY_7[0], confidence_score
+        elif raw_instrument_name in ["piano", "celesta"]:
+            return FAMILY_7[4], confidence_score
+        elif raw_instrument_name in ["percussion"]:
+            return FAMILY_7[3], confidence_score
         else:
-            return FAMILLES_7[5], score_confiance
+            return FAMILY_7[5], confidence_score
 
 
 HTML_INTERFACE = """
@@ -150,47 +150,47 @@ def predict():
     if 'file' not in request.files:
         return jsonify({'erreur': 'Aucun fichier détecté'}), 400
     
-    fichier = request.files['file']
-    if fichier.filename == '':
+    uploaded_file = request.files['file']
+    if uploaded_file.filename == '':
         return jsonify({'erreur': 'Aucun fichier sélectionné'}), 400
     
 
-    nom_securise = secure_filename(fichier.filename)
-    chemin_temporaire = os.path.join(DOSSIER_DU_SCRIPT, nom_securise)
-    fichier.save(chemin_temporaire)
+    filename_secured = secure_filename(uploaded_file.filename)
+    temporary_path = os.path.join(SCRIPT_DIR, filename_secured)
+    uploaded_file.save(temporary_path)
     
     try:
-        famille_detectee, confiance = traiter_et_predire_vrai(chemin_temporaire)
+        detected_family, confiance = process_and_predict(temporary_path)
         statut = "Succès"
         
 
         SEUIL_CONFIANCE_KPI = 70.0 
         
-        if confiance < SEUIL_CONFIANCE_KPI:
-            statut_routage = "Alerte : Niveau de confiance insuffisant (< 70%)"
-            action_industrialisation = "Routage suspendu - Envoi immédiat au bac de révision manuelle (Secrétariat)"
+        if confidence < SEUIL_CONFIANCE_KPI:
+            routing_status = "Alerte : Niveau de confiance insuffisant (< 70%)"
+            industrial_action = "Routage suspendu - Envoi immédiat au bac de révision manuelle (Secrétariat)"
         else:
-            statut_routage = "Validé"
-            action_industrialisation = f"Routage automatique vers le répertoire industriel : {famille_detectee}"
+            routing_status = "Validé"
+            industrial_action = f"Routage automatique vers le répertoire industriel : {detected_family}"
             
     except Exception as e:
-        famille_detectee = "Erreur de classification"
-        confiance = 0.0
+        detected_family = "Erreur de classification"
+        confidence = 0.0
         statut = f"Erreur technique : {str(e)}"
-        statut_routage = "Échec technique"
-        action_industrialisation = "Aucune action - Fichier corrompu ou illisible"
+        routing_status = "Échec technique"
+        industrial_action = "Aucune action - Fichier corrompu ou illisible"
         
     finally:
-        if os.path.exists(chemin_temporaire):
-            os.remove(chemin_temporaire)
+        if os.path.exists(temporary_path):
+            os.remove(temporary_path)
             
     return jsonify({
         'statut': statut,
-        'fichier_analyse': nom_securise,
-        'famille_instrument_identifiee': famille_detectee,
-        'score_de_confiance_global': f"{confiance:.2f}%",
-        'statut_routage_metier': statut_routage,
-        'action_industrialisation': action_industrialisation
+        'analyzed_file': filename_secured,
+        'identified_instrument_family': detected_family,
+        'global_confidence_score': f"{confiance:.2f}%",
+        'business_routing_status': routing_status,
+        'industrial_deployment_action': industrial_action
     })
 
 if __name__ == '__main__':
