@@ -50,7 +50,7 @@ try:
         properties=connection_properties
     )
 except Exception as e:
-    print(f"❌ Erreur lors de la lecture JDBC : {e}")
+    print(f"Erreur lors de la lecture JDBC : {e}")
     print("Vérifie que ta base PostgreSQL est bien allumée et contient des données.")
     spark.stop()
     exit(1)

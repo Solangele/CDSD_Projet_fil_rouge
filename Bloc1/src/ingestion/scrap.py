@@ -45,7 +45,7 @@ def etl_philharmonia_to_disk():
             break
 
     if not zip_url:
-        print("❌ Lien introuvable.")
+        print("Lien introuvable.")
         return
 
 # --- PHASE 2 : TÉLÉCHARGEMENT ---
@@ -56,7 +56,7 @@ def etl_philharmonia_to_disk():
     print(f"Taille du fichier téléchargé : {taille_mo:.2f} Mo")
 
     if taille_mo < 0.1:
-        print("❌ Le fichier téléchargé est trop petit, il y a eu un problème de réseau.")
+        print("Le fichier téléchargé est trop petit, il y a eu un problème de réseau.")
         return
 
     z = zipfile.ZipFile(io.BytesIO(r.content))

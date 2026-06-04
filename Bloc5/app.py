@@ -22,6 +22,7 @@ from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, render_template_string
 
 app = Flask(__name__)
+app.json.ensure_ascii = False
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -160,15 +161,15 @@ def predict():
     uploaded_file.save(temporary_path)
     
     try:
-        detected_family, confiance = process_and_predict(temporary_path)
+        detected_family, confidence = process_and_predict(temporary_path)
         statut = "Succès"
         
 
-        SEUIL_CONFIANCE_KPI = 70.0 
+        SEUIL_CONFIDENCE_KPI = 70.0 
         
-        if confidence < SEUIL_CONFIANCE_KPI:
+        if confidence < SEUIL_CONFIDENCE_KPI:
             routing_status = "Alerte : Niveau de confiance insuffisant (< 70%)"
-            industrial_action = "Routage suspendu - Envoi immédiat au bac de révision manuelle (Secrétariat)"
+            industrial_action = "Routage suspendu - Envoi immédiat au bac de révision manuel (Secrétariat)"
         else:
             routing_status = "Validé"
             industrial_action = f"Routage automatique vers le répertoire industriel : {detected_family}"
@@ -188,7 +189,7 @@ def predict():
         'statut': statut,
         'analyzed_file': filename_secured,
         'identified_instrument_family': detected_family,
-        'global_confidence_score': f"{confiance:.2f}%",
+        'global_confidence_score': f"{confidence:.2f}%",
         'business_routing_status': routing_status,
         'industrial_deployment_action': industrial_action
     })

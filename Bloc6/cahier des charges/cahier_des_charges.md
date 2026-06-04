@@ -52,7 +52,7 @@
 
 
 ## 1. Contexte et enjeux
-L'école de musique privée MusiQualité (45 campus en France, 25 M€ de CA), fait face à un flux massif de 1000 extraits audio envoyés chaque semaine par les élèves sur sa plateforme en ligne. 
+L'école de musique privée MusiQualité (45 campus en France, 25 M€ de CA), fait face à un flux massif de 10 000 extraits audio envoyés chaque semaine par les élèves sur sa plateforme en ligne. 
 Actuellement, le tri et l'aiguillage de ces fichiers vers différents départements (Cordes, Vents, Claviers...) se font manuellement par l'équipe administrative, ce qui génère des retards de correction et un coût de gestion estimé à 1,8 M€/an en perte de productivité.  
 
 La direction souhaite implémenter l'outil Intel-Safe pour automatiser ce routage. Le projet est soutenu politiquement par la nouvelle DG (Caroline Clarinetten ex-Opéra de Paris) qui veut démontrer la modernisation des infrastructures du groupe lors du COMEX du 04/06/2026.

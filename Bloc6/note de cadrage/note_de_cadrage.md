@@ -18,7 +18,7 @@ MusiQualité est une école de musique privée prestigieuse qui compte 45 campus
 
 
 ## 2. Contexte business
-L'école de musique privée MusiQualité (45 campus en France, 25 M€ de CA), fait face à un flux massif de 1000 extraits audio envoyés chaque semaine par les élèves sur sa plateforme en ligne. 
+L'école de musique privée MusiQualité (45 campus en France, 25 M€ de CA), fait face à un flux massif de 10 000 extraits audio envoyés chaque semaine par les élèves sur sa plateforme en ligne. 
 Actuellement, le tri et l'aiguillage de ces fichiers vers différents départements (Cordes, Vents, Claviers...) se font manuellement par l'équipe administrative, ce qui génère des retards de correction et un coût de gestion estimé à 1,8 M€/an en perte de productivité. 
 
 Caroline Clarinette, nouvelle Directrice Générale (ancienne directrice de l'Opéra de Paris), souhaite moderniser l'école en déployant un système automatisé de routage intelligent. L'enjeu est de capitaliser sur la donnée audio brute, pour produire un outil de tri actionnable à l'échelle, d'abord testé sur 5 campus pilotes (Paris-Marais, Lyon-Presqu'île, Bordeaux, Lille, Marseille), sous la pression du président Guillaume Guitare qui exige une modernisation rapide de l'infrastructure. 

@@ -47,7 +47,18 @@ def generate_irmas_csv(data_path, output_filename="metadata_irmas.csv"):
     print(f"✅ Terminé ! {len(df)} fichiers indexés dans {output_filename}")
 
 def label_to_name(label):
-    """Convertit les codes IRMAS en noms clairs pour ton App enfant"""
+    """
+    Convertit un code court à 3 lettres du jeu de données IRMAS en son nom complet en français.
+
+    Cette fonction utilitaire permet de traduire les abréviations techniques utilisées dans le jeu de données audio en labels clairs et compréhensibles pour l'interface utilisateur. 
+    Elle intègre une gesion de classe (majuscules/minuscules) ainsi qu'un mécanisme de secours sécurisé. 
+
+    Argument : 
+        label (str) : le code d'instrument à 3 caractères issu du dataset
+
+    Retourne :
+        str : le nom complet de l'instrument en français. Renvoie "Inconnu" si le code fourni n'est pas répertorié dans le dictionnaire. 
+    """
     mapping = {
         "cel": "Violoncelle",
         "cla": "Clarinette",

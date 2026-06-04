@@ -5,7 +5,7 @@ Document préparé par Angèle Despretz (Chef de Projet Data et IA), avec l'appu
 _________________________________________________________________________________________________________________________
 
 ## Pourquoi nous avons lancé ce projet
-Avec 45 campus, France et un chiffre d'affaires de 25 M€, Musiqualité fait face à un défi logistique majeur : la gestion d'un flux massif de 1000 extraits audio envoyés chaque semaine par nos élèves sur notre plateforme en ligne. 
+Avec 45 campus, France et un chiffre d'affaires de 25 M€, Musiqualité fait face à un défi logistique majeur : la gestion d'un flux massif de 10 000 extraits audio envoyés chaque semaine par nos élèves sur notre plateforme en ligne. 
 
 Actuellement, le tri, la qualification et l'aiguillage de ces fichiers vers les différents départements pédagogiques (Cordes; Vents, Claviers...) sont effectués entièrement à la main par l'équipe administrative. Ce goulot d'étranglement génère des retards importants dans la correction des élèves et représente un coût de gestion annuel estimé à 1,8 M€ en pure perte de productivité. 
 
