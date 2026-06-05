@@ -59,9 +59,20 @@ FAMILY_7 = [
 
 def process_and_predict(audio_path):
     """
-    Pipeline d'inférence : transforme l'audio en Mel-Spectrogramme (128 x 128 x 1) et applique une logique de routage robuste selon l'architecture du modèle chargé.
-    """
+  Pipeline d'inférence complet : Transforme un signal audio en descripteur visuel (Mel-Spectrogramme) et applique un routage multiniveau adaptatif. 
 
+  Logique algorithmique du routage :
+    - Si le modèle possède 7 neurones de sortie : cartographie directe vers les familles macro-métiers (FAMILY_7).
+    - Si le modèle possède une granularité fina (ex : 26 sorties) : Classification au niveau de l'instrument (RAW_CLASSES_26) puis agrégation déductive via un arbre de décidion 'if/elif' pour garantir le format pivot à 7 familles. 
+
+    Arguments : 
+        audio_path (str) : chemin d'accès local vers le fichier audio à analyser.
+
+    Retourne : 
+        Un tuple contenant 2 éléments : 
+            - str : le nom de la famille d'instruments identifié (parmi les 7 familles officielles).
+            - float : le score de confiance associé à la prédiction, exprimé en pourcentage [0.0 ; 100.0]
+    """
     y, sr = librosa.load(audio_path, sr=22050, duration=3.0)
     mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128, fmax=8000)
     mel_spec_db = librosa.power_to_db(mel_spec, ref=np.max)

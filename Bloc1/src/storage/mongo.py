@@ -123,7 +123,7 @@ def index_minio_to_mongodb(bucket_name, source_name):
     """
     Parcourt un bucket MinIO, extrait les métadonnées de chaque fichier audio et les pousse dans MongoDb.
 
-    La fonction utiliser un paginateur S3 pour traiter les buckets contenant un grand nombre de fichiers. Chaque document inséré contient le nom, le chemin d'accès complet, la taille, la date de modification, le label extrait et la durée audio calculée. 
+    La fonction utilise un paginateur S3 pour traiter les buckets contenant un grand nombre de fichiers. Chaque document inséré contient le nom, le chemin d'accès complet, la taille, la date de modification, le label extrait et la durée audio calculée. 
     La clé d'unicité dans MongoDB est le champ 'minio_path' (Upsert).
 
     Arguments :
