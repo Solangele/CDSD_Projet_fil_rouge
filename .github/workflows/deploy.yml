@@ -27,7 +27,7 @@ jobs:
 
     - name: Validation du Build Docker
       run: |
-        docker build -f Bloc5/Dockerfile -t audio-app:test .
+        docker build -t audio-app:test Bloc5/
 
   # 2. PHASE CD : Déploiement Continu sur le Cloud (Render)
   deploy:
