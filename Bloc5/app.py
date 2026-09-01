@@ -31,7 +31,7 @@ MODEL_PATH = os.path.join(SCRIPT_DIR, "model_cnn_optimal.keras")
 
 if os.path.exists(MODEL_PATH):
     print(f"Récupération du modèle optimal : {MODEL_PATH}")
-    model = tf.keras.models.load_model(MODEL_PATH)
+    model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 else:
     raise FileNotFoundError(f"Le modèle '{MODEL_PATH}' est introuvable dans le dossier Bloc5.")
 
