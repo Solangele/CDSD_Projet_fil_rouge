@@ -211,8 +211,26 @@ def predict():
                 'business_routing_status': routing_status,
                 'industrial_deployment_action': industrial_action
     }
+
             
-    return render_template('result.html', data = result)
+    possible_paths = [
+        os.path.join(SCRIPT_DIR, 'templates', 'result.html'),
+        os.path.join(SCRIPT_DIR, 'Bloc5', 'templates', 'result.html'),
+        os.path.join(BASE_DIR, 'templates', 'result.html')
+    ]
+    
+    template_content = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                template_content = f.read()
+            break
+            
+    if template_content:
+        return render_template_string(template_content, data=result)
+    else:
+        # Fallback de secours si le fichier est totalement absent du dépôt GitHub
+        return jsonify(result)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
