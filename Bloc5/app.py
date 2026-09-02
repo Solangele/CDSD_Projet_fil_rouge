@@ -19,7 +19,7 @@ import numpy as np
 import librosa
 import tensorflow as tf
 from werkzeug.utils import secure_filename
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, render_template
 
 app = Flask(__name__)
 app.json.ensure_ascii = False
@@ -141,7 +141,7 @@ HTML_INTERFACE = """
 <body>
     <div class="card">
         <h2>🎵 Tri et Routage Audio Intel-Safe</h2>
-        <p>Pipeline Hybride Tolérant aux Pannes — Objectif 7 Familles</p>
+        <p>Objectif 7 Familles</p>
         <hr style="border: 0; border-top: 1px solid #edf2f7; margin-bottom: 20px;">
         <form action="/predict" method="post" enctype="multipart/form-data">
             <input type="file" name="file" accept=".wav,.mp3" class="file-input" required><br>
@@ -195,15 +195,18 @@ def predict():
     finally:
         if os.path.exists(temporary_path):
             os.remove(temporary_path)
-            
-    return jsonify({
+
+    result = {
         'statut': statut,
-        'analyzed_file': filename_secured,
-        'identified_instrument_family': detected_family,
-        'global_confidence_score': f"{confidence:.2f}%",
-        'business_routing_status': routing_status,
-        'industrial_deployment_action': industrial_action
-    })
+                'analyzed_file': filename_secured,
+                'identified_instrument_family': detected_family,
+                'global_confidence_score': f"{confidence:.2f}%",
+                'confidence_value': round(confidence, 2),
+                'business_routing_status': routing_status,
+                'industrial_deployment_action': industrial_action
+    }
+            
+    return render_template('result.html', data = result)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
