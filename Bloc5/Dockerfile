@@ -13,7 +13,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 
-COPY model_cnn_optimal.keras .
+COPY model_cnn_optimal.h5 .
 COPY app.py .
 
 

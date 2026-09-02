@@ -22,7 +22,6 @@ Thumbs.db
 
 # --- Data & Models (Optionnel) ---
 data/
-models/*.keras
 models/*.pkl
 
 
