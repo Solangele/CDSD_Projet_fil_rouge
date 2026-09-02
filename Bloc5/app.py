@@ -21,7 +21,10 @@ import tensorflow as tf
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, render_template_string, render_template
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
+
+app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.json.ensure_ascii = False
 
 
