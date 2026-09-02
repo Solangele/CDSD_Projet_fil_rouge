@@ -24,6 +24,9 @@ from flask import Flask, request, jsonify, render_template_string, render_templa
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
 
+if not os.path.exists(TEMPLATE_DIR):
+    TEMPLATE_DIR = os.path.join(BASE_DIR, 'Bloc5', 'templates')
+
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.json.ensure_ascii = False
 
