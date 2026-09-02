@@ -15,7 +15,6 @@ Endpoints :
 
 
 import os
-os.environ["TF_USE_LEGACY_KERAS"] = "1"
 import numpy as np
 import librosa
 import tensorflow as tf
