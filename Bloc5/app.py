@@ -21,25 +21,17 @@ import tensorflow as tf
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, render_template_string, render_template
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-if not os.path.exists(TEMPLATE_DIR):
-    TEMPLATE_DIR = os.path.join(BASE_DIR, 'Bloc5', 'templates')
-
-app = Flask(__name__, template_folder=TEMPLATE_DIR)
+app = Flask(__name__)
 app.json.ensure_ascii = False
 
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Chargement du modèle
 MODEL_PATH = os.path.join(SCRIPT_DIR, "model_cnn_optimal.h5")
-
-
 if os.path.exists(MODEL_PATH):
-    print(f"Récupération du modèle optimal : {MODEL_PATH}")
     model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 else:
-    raise FileNotFoundError(f"Le modèle '{MODEL_PATH}' est introuvable dans le dossier Bloc5.")
+    raise FileNotFoundError(f"Le modèle '{MODEL_PATH}' est introuvable.")
 
 
 RAW_CLASSES_26 = [
@@ -106,12 +98,8 @@ def process_and_predict(audio_path):
 
     if model_output_nodes == 7:
         return FAMILY_7[predicted_index], confidence_score
-        
-
     else:
         raw_instrument_name = RAW_CLASSES_26[predicted_index] if predicted_index < len(RAW_CLASSES_26) else "autre"
-        
-
         if raw_instrument_name in ["organ"]:
             return FAMILY_7[2], confidence_score
         elif raw_instrument_name in ["banjo", "guitar", "mandolin", "electric_guitar", "acoustic_guitar"]:
@@ -132,29 +120,89 @@ HTML_INTERFACE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>IA Audio - Routage Securisé</title>
+    <title>IA Audio - Routage Sécurisé</title>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background-color: #f4f6f9; display: flex; align-items: center; justify-content: center; height: 100vh; }
-        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.05); max-width: 550px; width: 100%; text-align: center; }
-        h2 { color: #2c3e50; margin: 0 0 10px 0; font-size: 24px; }
-        p { color: #7f8c8d; margin-bottom: 30px; font-size: 14px; }
-        .file-input { margin: 20px 0; padding: 15px; border: 2px dashed #3498db; border-radius: 8px; background: #f8fafc; width: 85%; font-size: 14px; }
-        button { background: #3498db; color: white; border: none; padding: 14px 30px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background: #f4f6f9; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.05); max-width: 500px; width: 100%; text-align: center; }
+        h2 { color: #2c3e50; margin-bottom: 10px; }
+        .file-input { margin: 20px 0; padding: 15px; border: 2px dashed #3498db; border-radius: 8px; background: #f8fafc; width: 85%; }
+        button { background: #3498db; color: white; border: none; padding: 14px 30px; border-radius: 6px; font-weight: bold; cursor: pointer; }
         button:hover { background: #2980b9; }
-        .footer { margin-top: 25px; font-size: 11px; color: #bdc3c7; }
+        
+        /* Style du Popup (Modale) */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; max-width: 450px; width: 90%; text-align: left; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .modal-header { font-size: 20px; font-weight: bold; margin-bottom: 15px; color: #2c3e50; }
+        .badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; color: white; margin-bottom: 15px; }
+        .badge-success { background: #2ecc71; }
+        .badge-warning { background: #e67e22; }
+        .close-btn { background: #7f8c8d; margin-top: 20px; float: right; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>🎵 Tri et Routage Audio Intel-Safe</h2>
-        <p>Objectif 7 Familles</p>
-        <hr style="border: 0; border-top: 1px solid #edf2f7; margin-bottom: 20px;">
-        <form action="/predict" method="post" enctype="multipart/form-data">
-            <input type="file" name="file" accept=".wav,.mp3" class="file-input" required><br>
-            <button type="submit">Analyser et Router</button>
+        <h2>🎵 Tri et Routage Audio</h2>
+        <p>Analyse automatique</p>
+        <form id="uploadForm">
+            <input type="file" id="audioFile" name="file" accept=".wav,.mp3" class="file-input" required><br>
+            <button type="submit" id="submitBtn">Analyser et Router</button>
         </form>
-        <div class="footer">Démonstrateur de Production Auto-Synchronisé</div>
     </div>
+
+    <!-- Structure du Popup -->
+    <div class="modal-overlay" id="resultModal">
+        <div class="modal-content">
+            <div class="modal-header">Résultat de l'analyse</div>
+            <div id="modalBadge" class="badge"></div>
+            <p><strong>Fichier :</strong> <span id="resFile"></span></p>
+            <p><strong>Famille :</strong> <span id="resFamily"></span></p>
+            <p><strong>Confiance :</strong> <span id="resScore"></span></p>
+            <p><strong>Action métier :</strong> <span id="resAction"></span></p>
+            <button class="close-btn" onclick="closeModal()">Fermer</button>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.innerText = "Analyse en cours...";
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', document.getElementById('audioFile').files[0]);
+
+            try {
+                const response = await fetch('/predict', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                document.getElementById('resFile').innerText = data.analyzed_file;
+                document.getElementById('resFamily').innerText = data.identified_instrument_family;
+                document.getElementById('resScore').innerText = data.global_confidence_score;
+                document.getElementById('resAction').innerText = data.industrial_deployment_action;
+
+                const badge = document.getElementById('modalBadge');
+                if (data.confidence_value >= 70) {
+                    badge.innerText = "ROUTAGE VALIDÉ";
+                    badge.className = "badge badge-success";
+                } else {
+                    badge.innerText = "ATTENTION : REVISION MANUELLE";
+                    badge.className = "badge badge-warning";
+                }
+
+                document.getElementById('resultModal').style.display = 'flex';
+            } catch (err) {
+                alert("Erreur lors de l'analyse audio.");
+            } finally {
+                btn.innerText = "Analyser et Router";
+                btn.disabled = false;
+            }
+        });
+
+        function closeModal() {
+            document.getElementById('resultModal').style.display = 'none';
+        }
+    </script>
 </body>
 </html>
 """
@@ -202,35 +250,14 @@ def predict():
         if os.path.exists(temporary_path):
             os.remove(temporary_path)
 
-    result = {
-        'statut': statut,
-                'analyzed_file': filename_secured,
-                'identified_instrument_family': detected_family,
-                'global_confidence_score': f"{confidence:.2f}%",
-                'confidence_value': round(confidence, 2),
-                'business_routing_status': routing_status,
-                'industrial_deployment_action': industrial_action
-    }
-
-            
-    possible_paths = [
-        os.path.join(SCRIPT_DIR, 'templates', 'result.html'),
-        os.path.join(SCRIPT_DIR, 'Bloc5', 'templates', 'result.html'),
-        os.path.join(BASE_DIR, 'templates', 'result.html')
-    ]
-    
-    template_content = None
-    for path in possible_paths:
-        if os.path.exists(path):
-            with open(path, 'r', encoding='utf-8') as f:
-                template_content = f.read()
-            break
-            
-    if template_content:
-        return render_template_string(template_content, data=result)
-    else:
-        # Fallback de secours si le fichier est totalement absent du dépôt GitHub
-        return jsonify(result)
+    return jsonify({
+        'analyzed_file': filename_secured,
+        'identified_instrument_family': detected_family,
+        'global_confidence_score': f"{confidence:.2f}%",
+        'confidence_value': round(confidence, 2),
+        'business_routing_status': routing_status,
+        'industrial_deployment_action': industrial_action
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
