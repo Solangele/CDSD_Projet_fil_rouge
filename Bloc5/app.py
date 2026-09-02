@@ -15,6 +15,7 @@ Endpoints :
 
 
 import os
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
 import numpy as np
 import librosa
 import tensorflow as tf
@@ -26,7 +27,7 @@ app.json.ensure_ascii = False
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(SCRIPT_DIR, "model_cnn_optimal.keras")
+MODEL_PATH = os.path.join(SCRIPT_DIR, "model_cnn_optimal.h5")
 
 
 if os.path.exists(MODEL_PATH):
